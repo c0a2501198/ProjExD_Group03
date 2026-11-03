@@ -29,6 +29,12 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # ===== 【A】アイテムドロップの定数はここに書く =====
 
 # ===== 【B】自機強化の定数はここに書く =====
+LEVEL_SCORES = [0, 100, 300]
+GAUGE_MAX = 100
+GAUGE_PER_ENEMY = 10
+SPECIAL_MAX_USE = 3
+SPECIAL_TIME = 30
+SPECIAL_DAMAGE = 10
 
 # ===== 【C】雑魚敵・難易度の定数はここに書く =====
 
@@ -167,7 +173,7 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird) -> None:
+    def __init__(self, bird: Bird, angle0: float = 0) -> None:
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
@@ -176,10 +182,13 @@ class Beam(pg.sprite.Sprite):
         super().__init__()
         self.vx, self.vy = bird.dire
         angle = math.degrees(math.atan2(-self.vy, self.vx))
-        self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
+        self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle + angle0, 1.0)
         self.rect = self.image.get_rect()
         self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
         self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
+        self.radian = math.radians(angle + angle0)
+        self.x = math.cos(self.radian)
+        self.y = -math.sin(self.radian)
         self.speed = 10
         self.power = 1  # 威力（敵やボスに与えるダメージ）
 
@@ -187,7 +196,7 @@ class Beam(pg.sprite.Sprite):
         """
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
         """
-        self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
+        self.rect.move_ip(self.speed*self.x, self.speed*self.y)
         if check_bound(self.rect) != (True, True):
             self.kill()
 
@@ -315,6 +324,131 @@ class LifeDisplay:
 
 
 # ===== 【B】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
+class PowerUp:
+    """
+    自機のビームの数が増えます
+    """
+    def __init__(self) -> None:
+        """
+        PowerUpクラスのイニシャライズ
+        属性1: 今の段階
+        属性2: 文字表示用のフォント
+        """
+        self.level: int = 1
+        self.fonto: pg.font.Font = pg.font.Font(None, 80)
+
+    def update_level(self, score_value: int) -> None:
+        """
+        レベルを決めるメソッド
+        引数1: スコアの値
+        戻り値: なし
+        """
+        if LEVEL_SCORES[1] <= score_value < LEVEL_SCORES[2]:
+            self.level = 2
+            
+        elif LEVEL_SCORES[2] <= score_value:
+            self.level = 3
+
+    def get_angles(self) -> list[int]:
+        """
+        段階に応じた角度のリストを返す
+        戻り値: int型が入るリスト(段階によって要素数異なる)
+        """
+        if self.level == 1:
+            return [0]
+        elif self.level == 2:
+            return [-15, 0, 15]
+        elif self.level == 3:
+            return [-30, -15, 0, 15, 30]
+
+    def draw(self, screen: pg.Surface) -> None:
+        """
+        レベルのblitをする
+        引数1: 背景画面
+        戻り値: なし
+        """
+        level_txt = self.fonto.render(f"Lv.{self.level}", True, (255, 255, 255))
+        rect = level_txt.get_rect()
+        rect.center = 100, HEIGHT-100
+        screen.blit(level_txt, rect)
+
+
+class SpecialGauge:
+    """
+    必殺技を放つゲージの管理をするクラス
+    """
+    def __init__(self) -> None:
+        """
+        イニシャライズ
+        属性1: 今のゲージ量(最初は0)
+        属性2: 必殺技の使用上限回数(最初はSPECIAL_MAX_USE)
+        """
+        self.value = 0
+        self.uses = SPECIAL_MAX_USE
+
+    def add(self, amount: int) -> None:
+        """
+        雑魚敵を倒すとゲージがたまる関数
+        引数1: ゲージの溜まる量
+        戻り値: なし
+        """
+        if self.value <= GAUGE_MAX:
+            self.value = min(self.value + amount, GAUGE_MAX)
+
+    def can_use(self) -> bool:
+        """
+        必殺技を使えるか判定
+        戻り値: 必殺技使用可否の真理値を返す
+        """
+        if (self.value == GAUGE_MAX) and (self.uses >= 1):
+            return True
+        return False
+
+    def use(self) -> None:
+        """
+        必殺技を使用したら、ゲージを0にする。また残り回数を1回減らす
+        戻り値: なし
+        """
+        self.value = 0
+        self.uses -= 1
+
+    def draw(self, screen: pg.Surface) -> None:
+        """
+        ゲージバーを2本screenに貼り付け。bar1は灰色。bar2は黄色。
+        引数1: 画面
+        戻り値: なし
+        """
+        fonto = pg.font.Font(None, 80)
+        use_remaining = fonto.render(f"{self.uses}", True, (255, 255, 255))
+        pg.draw.rect(screen, (128, 128, 128), (100, HEIGHT-150, 200, 15))
+        pg.draw.rect(screen, (255, 255, 0), (100, HEIGHT-150, (200 * self.value / GAUGE_MAX), 15))
+        screen.blit(use_remaining, [100, HEIGHT-250])
+
+
+class Special(pg.sprite.Sprite):
+    """
+    必殺技を放つためのクラス
+    """
+    def __init__(self) -> None:
+        """
+        イニシャライズ
+        属性1: 継承
+        属性2: 白色の画面(半透明)
+        """
+        super().__init__()
+        self.life = SPECIAL_TIME
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        self.rect = self.image.get_rect()
+        self.image.fill((255, 255, 255))
+        self.image.set_alpha(128)
+
+    def update(self) -> None:
+        """
+        白色の画面を時間に基づき消去
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
 
 
 # ===== 【C】雑魚敵のサブクラス（ZigzagEnemy，ChaseEnemy，TankEnemy）と出現用の関数はここに書く =====
@@ -348,6 +482,9 @@ def main() -> None:
     # ===== 【A】アイテム用のGroup（items）と威力アップの残り時間はここで作る =====
 
     # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
+    power_up = PowerUp()
+    special_gauge = SpecialGauge()
+    special = pg.sprite.Group()
 
     # ===== 【D】TitleScreen，ResultScreen，SoundManagerはここで作る =====
 
@@ -361,10 +498,19 @@ def main() -> None:
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # 【A】威力アップ中は作ったビームのpowerを+1する
                 # 【B】強化段階の角度ごとにビームを作る形に変える
+                for angle in power_up.get_angles():
+                    beams.add(Beam(bird, angle))
                 # 【D】ビームの効果音を鳴らす
-                beams.add(Beam(bird))
-
             # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
+            if event.type == pg.KEYDOWN and event.key == pg.K_x and special_gauge.can_use() == True:
+                for emy in emys:
+                    exps.add(Explosion(emy, 100))
+                    emy.kill()
+                for bomb in bombs:
+                    exps.add(Explosion(bomb, 50))
+                    bomb.kill()
+                special.add(Special())
+                special_gauge.use()
 
             # ===== 【D】Enterキーでスタート・リトライする処理はここに書く =====
 
@@ -402,6 +548,7 @@ def main() -> None:
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 # 【A】確率でアイテムを出す
                 # 【B】必殺技のゲージを溜める
+                special_gauge.add(GAUGE_PER_ENEMY)
                 # 【D】爆発の効果音を鳴らす
                 emy.kill()
 
@@ -443,7 +590,11 @@ def main() -> None:
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
 
         # ===== 【B】強化段階・ゲージ・必殺技の描画はここに書く =====
-
+        power_up.update_level(score.value)
+        power_up.draw(screen)
+        special_gauge.draw(screen)
+        special.update()
+        special.draw(screen)
         score.update(screen)
         life_display.update(screen, bird.life)
         pg.display.update()
