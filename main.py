@@ -329,10 +329,10 @@ class TitleScreen:
         """
         タイトル画面用のフォントを用意する
         """
-        self.title_font = pg.font.Font(None, 100)
-        self.small_font = pg.font.Font(None, 50)
-        self.title_surface = self.title_font.render("Title")
-        self.small_surface = self.small_font.render("Press Enter")
+        self.title_font = pg.font.Font(None, 100) #タイトルのフォント
+        self.small_font = pg.font.Font(None, 50) #案内のフォント
+        self.title_surface = self.title_font.render("Title", True, (255, 255, 255)) #タイトルのSurface作成
+        self.small_surface = self.small_font.render("Press Enter", True, (255, 255, 255)) #案内のSurface作成
 
     def draw(self, screen: pg.Surface, tmr: int) -> None:
         """
@@ -340,16 +340,16 @@ class TitleScreen:
         引数1 screen：画面Surface
         引数2 tmr：ゲーム開始からのフレーム数
         """
-        screen.blit(self.title_surface, (50, 120))
+        screen.blit(self.title_surface, [400, 300]) #タイトルのblit
         if (tmr//25)%2 == 0:
-            screen.blit(self.small_surface, (50, 100))
+            screen.blit(self.small_surface, [400, 200]) #案内のblit
 
 
 class ResultScreen:
     """
     リザルト画面を表示するクラス
     """
-    def __init__(self, kind):
+    def __init__(self, kind: str):
         """
         表示するフォント、文字、画像を用意する
         """
@@ -358,14 +358,13 @@ class ResultScreen:
         self.black_img.set_alpha(200)  # 透明度の調整
         self.font = pg.font.Font(None, 80)  # フォントの設定
         self.value = 0
-        #self.score = self.fonto.render(f"Score：{self.value}", True, (255, 255, 255))
-        self.retry = self.font.render("Press Enter to retry", True, (255, 255, 255))
+        self.retry = self.font.render("Press Enter to retry", True, (255, 255, 255)) #Retry文のSurface作成
         if kind == "gameover":
             self.txt = self.font.render("Game Over", True, (255, 255, 255))  # 文字の決定
             self.koukaton_img = pg.image.load("fig/8.png")  # 画像の読み込み
         elif kind == "clear":
             self.txt = self.font.render("Clear!", True, (255, 255, 255))  # 文字の決定
-            self.koukaton_img = pg.image.load("fig/6.png")
+            self.koukaton_img = pg.image.load("fig/6.png") #画像の読み込み
         
 
     def draw(self, screen: pg.Surface, score_value: int) -> None:
@@ -374,13 +373,13 @@ class ResultScreen:
         引数1：screen：画面Surface
         引数2：score_value：スコアの値
         """
-        score_surface = self.font.render(f"Score：{score_value}", True, (255, 255, 255))
-        screen.blit(self.black_img, [0, 0])
-        screen.blit(self.txt, [400, 300])
-        screen.blit(self.koukaton_img, [300, 300])
-        screen.blit(self.koukaton_img, [800, 300])
-        screen.blit(score_surface, [400, 200])
-        screen.blit(self.retry, [400, 100])
+        score_surface = self.font.render(f"Score : {score_value}", True, (255, 255, 255)) #スコアSurface作成
+        screen.blit(self.black_img, [0, 0]) #透明な黒のblit
+        screen.blit(self.txt, [400, 300]) #"Game Over" or "Clera"のblit
+        screen.blit(self.koukaton_img, [300, 300]) #こうかとん1枚目のblit
+        screen.blit(self.koukaton_img, [800, 300]) #こうかとん2枚目のblit
+        screen.blit(score_surface, [400, 200]) #Scoreのblit
+        screen.blit(self.retry, [400, 100]) #"Press Enter to Retry"のblit
         
 
 
@@ -403,7 +402,7 @@ def main() -> None:
 
     # ゲームの状態："play"（通常）／"boss"（ボス戦）
     # 【D】"title"，"gameover"，"clear"を追加する
-    state = "play"
+    state = "title" #ゲームの状態を管理
 
     # ===== 【中川】ボス用のGroup（bosses）と変数はここで作る =====
 
@@ -412,6 +411,10 @@ def main() -> None:
     # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
 
     # ===== 【D】TitleScreen，ResultScreen，SoundManagerはここで作る =====
+    title = TitleScreen()
+    gameover_result = ResultScreen("gameover")
+    clear_result = ResultScreen("clear")
+    #sound = SoundManager()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -429,9 +432,37 @@ def main() -> None:
             # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
 
             # ===== 【D】Enterキーでスタート・リトライする処理はここに書く =====
-
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if state == "title":
+                    state = "play" #titleからplayに移行
+                elif state == "gameover" or "clear":
+                    beams.empty() #beamsを空に
+                    bombs.empty() #bombsを空に
+                    emys.empty() #emysを空に
+                    exps.empty() #expsを空に
+                    score = Score() #スコアを初期値にリセット\
+                    life_display = LifeDisplay() #体力の表示をリセット
+                    bird = Bird(3, (900, 400)) #こうかとんの位置をリセット
+                    state = "play" #gameover or clearからplayに移行
         # ===== 【D】タイトル画面・結果画面を描いてcontinueする処理はここに書く =====
-
+        if state == "title": 
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            title.draw(screen, tmr) #タイトルを表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
+        elif state == "gameover":
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            gameover_result.draw(screen, score.value) #ゲームオーバーを表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
+        elif state == "clear":
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            clear_result.draw(screen, score.value) #クリア画面を表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
         # ===== 【D】stateに合わせてBGMを切り替える処理はここに書く =====
 
         screen.blit(bg_img, [0, 0])
@@ -485,10 +516,7 @@ def main() -> None:
 
         if bird.life <= 0:
             # 【D】ここをstate = "gameover"にする（今はゲームを終了する）
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            state = "gameover" #こうかとんの体力が0ならgameover
 
         bird.update(key_lst, screen)
         beams.update()
