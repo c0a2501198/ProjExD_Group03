@@ -27,7 +27,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # ===== 【中川】ボス戦の定数はここに書く =====
 
 # ===== 【A】アイテムドロップの定数はここに書く =====
-
+ITEM_DROP_RATE = 0.2
+ITEM_SPEED = 3
+LIFE_MAX = 5
+POWER_TIME = 500
+BONUS_SCORE = 30
 # ===== 【B】自機強化の定数はここに書く =====
 
 # ===== 【C】雑魚敵・難易度の定数はここに書く =====
@@ -312,8 +316,43 @@ class LifeDisplay:
 
 
 # ===== 【A】アイテムのクラス（Item）はここに書く =====
-
-
+class Item(pg.sprite.Sprite):
+    """
+    アイテムに関するクラス
+    """
+    def __init__(self, kind: str, xy: tuple[int, int]) -> None:
+        """
+        落ちてくるアイテムを生成する
+        引数1：取得したアイテムの名前
+        引数2：アイテムの出現の位置座標
+        """
+        
+        super().__init__()
+        self.kind = kind  # 拾ったアイテムの種類の保存
+        colors = {
+            "heal": (255, 0, 0),  # 回復の場合の色
+            "power": (255, 255, 0),  # 威力アップの場合の色
+            "bonus": (0, 255, 0),  # スコアの場合の色
+        }
+        self.image = pg.Surface((40, 40))   # 空のサーフェイスの作成
+        self.image.set_colorkey((0, 0, 0))  # 黒を透明にする
+        color = colors[self.kind]  # 拾ったアイテムの色を取得
+        points = [(16*math.sin(t/100)**3 + 20,
+                -(13*math.cos(t/100) - 5*math.cos(2*t/100) - 2*math.cos(3*t/100) - math.cos(4*t/100)) + 20)
+                for t in range(0, 628)]  # ハートを作成
+        pg.draw.polygon(self.image, color, points)  # アイテムの画像をハートにする
+        self.rect = self.image.get_rect()  # レ区とモジュールを使えるようにする
+        self.rect.center = xy  # アイテムの降る位置の決定
+    
+    
+    def update(self) -> None:
+        """
+        アイテムが出現した位置から降ってくる設定
+        画面の外に行ったら消える。
+        """
+        self.rect.move_ip(0, ITEM_SPEED)  # アイテムが落ちる処理
+        if check_bound(self.rect) != (True, True):
+            self.kill()  # 画面外行ったら自動的に消える
 # ===== 【B】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
 
 
@@ -346,6 +385,9 @@ def main() -> None:
     # ===== 【中川】ボス用のGroup（bosses）と変数はここで作る =====
 
     # ===== 【A】アイテム用のGroup（items）と威力アップの残り時間はここで作る =====
+    items = pg.sprite.Group()  # アイテム
+    item_list = ["heal", "power", "bonus"]  # アイテムのリスト
+    power_timer = 0  # 強化状態の時間
 
     # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
 
@@ -360,6 +402,10 @@ def main() -> None:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # 【A】威力アップ中は作ったビームのpowerを+1する
+                new_beam = Beam(bird)
+                if power_timer > 0:
+                    new_beam.power += 1  # ビームの威力を1上げる
+                beams.add(new_beam)
                 # 【B】強化段階の角度ごとにビームを作る形に変える
                 # 【D】ビームの効果音を鳴らす
                 beams.add(Beam(bird))
@@ -401,17 +447,32 @@ def main() -> None:
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 # 【A】確率でアイテムを出す
+                if random.random() < ITEM_DROP_RATE:
+                    item = random.choice(item_list)  # リストの中からランダムで選ぶ
+                    items.add(Item(item, emy.rect.center))  # アイテムを出す
                 # 【B】必殺技のゲージを溜める
                 # 【D】爆発の効果音を鳴らす
                 emy.kill()
 
-        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
+        for bomb in pg.sprite.groupcollide(bombs, beams, True, False).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
         # ===== 【中川】ビームとボスの当たり判定はここに書く =====
 
         # ===== 【A】こうかとんがアイテムを取ったときの処理はここに書く =====
+        for item  in pg.sprite.spritecollide(bird, items, True): 
+            if item.kind == "heal":  # 回復を拾った時の処理
+                if bird.life == 5:
+                    bird.life = 5
+                else:
+                    bird.life += 1
+            elif item.kind == "bonus":  # スコアをとった時の処理
+                score.value += BONUS_SCORE
+            elif item.kind == "power":  # 強化アイテムをとった時の処理
+                power_timer = POWER_TIME
+        
+        power_timer -= 1  # 強化時間の減少
 
         # ===== 【C】追いかけ敵の体当たり（こうかとんと雑魚敵の当たり判定）はここに書く =====
 
@@ -441,6 +502,8 @@ def main() -> None:
         # ===== 【中川】ボスとHPバーの描画はここに書く =====
 
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
+        items.update()
+        items.draw(screen)  # アイテムの描写
 
         # ===== 【B】強化段階・ゲージ・必殺技の描画はここに書く =====
 
