@@ -321,6 +321,68 @@ class LifeDisplay:
 
 
 # ===== 【D】画面遷移・サウンドのクラス（TitleScreen，ResultScreen，SoundManager）はここに書く =====
+class TitleScreen:
+    """
+    タイトルの文字を表示するクラス
+    """
+    def __init__(self):
+        """
+        タイトル画面用のフォントを用意する
+        """
+        self.title_font = pg.font.Font(None, 100)
+        self.small_font = pg.font.Font(None, 50)
+        self.title_surface = self.title_font.render("Title")
+        self.small_surface = self.small_font.render("Press Enter")
+
+    def draw(self, screen: pg.Surface, tmr: int) -> None:
+        """
+        タイトル文字を表示する
+        引数1 screen：画面Surface
+        引数2 tmr：ゲーム開始からのフレーム数
+        """
+        screen.blit(self.title_surface, (50, 120))
+        if (tmr//25)%2 == 0:
+            screen.blit(self.small_surface, (50, 100))
+
+
+class ResultScreen:
+    """
+    リザルト画面を表示するクラス
+    """
+    def __init__(self, kind):
+        """
+        表示するフォント、文字、画像を用意する
+        """
+        self.black_img = pg.Surface((WIDTH, HEIGHT))  # Surfaceの生成
+        pg.draw.rect(self.black_img, (0, 0, 0), (0, 0, WIDTH, HEIGHT), width=0)  # 黒画像の描画
+        self.black_img.set_alpha(200)  # 透明度の調整
+        self.font = pg.font.Font(None, 80)  # フォントの設定
+        self.value = 0
+        #self.score = self.fonto.render(f"Score：{self.value}", True, (255, 255, 255))
+        self.retry = self.font.render("Press Enter to retry", True, (255, 255, 255))
+        if kind == "gameover":
+            self.txt = self.font.render("Game Over", True, (255, 255, 255))  # 文字の決定
+            self.koukaton_img = pg.image.load("fig/8.png")  # 画像の読み込み
+        elif kind == "clear":
+            self.txt = self.font.render("Clear!", True, (255, 255, 255))  # 文字の決定
+            self.koukaton_img = pg.image.load("fig/6.png")
+        
+
+    def draw(self, screen: pg.Surface, score_value: int) -> None:
+        """
+        ゲームオーバー、クリア画面、リザルトを表示する
+        引数1：screen：画面Surface
+        引数2：score_value：スコアの値
+        """
+        score_surface = self.font.render(f"Score：{score_value}", True, (255, 255, 255))
+        screen.blit(self.black_img, [0, 0])
+        screen.blit(self.txt, [400, 300])
+        screen.blit(self.koukaton_img, [300, 300])
+        screen.blit(self.koukaton_img, [800, 300])
+        screen.blit(score_surface, [400, 200])
+        screen.blit(self.retry, [400, 100])
+        
+
 
 
 def main() -> None:
