@@ -370,8 +370,8 @@ class ResultScreen:
     def draw(self, screen: pg.Surface, score_value: int) -> None:
         """
         ゲームオーバー、クリア画面、リザルトを表示する
-        引数1：screen：画面Surface
-        引数2：score_value：スコアの値
+        引数1 screen：画面Surface
+        引数2 score_value：スコアの値
         """
         score_surface = self.font.render(f"Score : {score_value}", True, (255, 255, 255)) #スコアSurface作成
         screen.blit(self.black_img, [0, 0]) #透明な黒のblit
@@ -396,12 +396,23 @@ class SoundManager:
         self.current_bgm = ""
 
     def play_bgm(self, name: str) -> None:
-        if name != self.current_bgm:
-            pg.mixer.music.load(name)
-            pg.mixer.music.play(loops = -1)
-            self.current_bgm = name
+        """
+        BGMの管理をする
+        引数1 name：BGMの名前の文字列
+        """
+        if name != self.current_bgm: #current_bgmとnameの値が異なるなら
+            if name == "":
+                pg.mixer.music.stop() #空文字が渡されたらBGM停止
+            else:
+                pg.mixer.music.load(name) #nameのBGMをロード
+                pg.mixer.music.play(loops = -1) #ロードしたBGMをループ再生
+            self.current_bgm = name #current_bgmの値をnameにする
 
     def play_se(self, name: str) -> None:
+        """
+        効果音の管理をする
+        引数1 name：効果音の名前の文字列
+        """
         se = self.sound_dic[name]
         se.play()
 
@@ -436,7 +447,7 @@ def main() -> None:
     title = TitleScreen()
     gameover_result = ResultScreen("gameover")
     clear_result = ResultScreen("clear")
-    #sound = SoundManager()
+    sound = SoundManager()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -459,7 +470,6 @@ def main() -> None:
                     state = "play" #titleからplayに移行
                 elif state == "play":
                     pass
-                #elif state == "gameover" or "clear":
                 else:
                     beams.empty() #beamsを空に
                     bombs.empty() #bombsを空に
@@ -469,6 +479,13 @@ def main() -> None:
                     life_display = LifeDisplay() #体力の表示をリセット
                     bird = Bird(3, (900, 400)) #こうかとんの位置をリセット
                     state = "play" #gameover or clearからplayに移行
+
+        # ===== 【D】stateに合わせてBGMを切り替える処理の位置を変更しました ===== 
+        if state == "play":
+            sound.play_bgm("sound/house_lo.wav")
+        else:
+            sound.play_bgm("")
+
         # ===== 【D】タイトル画面・結果画面を描いてcontinueする処理はここに書く =====
         if state == "title": 
             screen.blit(bg_img, (0, 0)) #背景の表示
@@ -488,9 +505,13 @@ def main() -> None:
             pg.display.update() #画面の更新
             clock.tick(50)
             continue
-        # ===== 【D】stateに合わせてBGMを切り替える処理はここに書く =====
+        screen.blit(bg_img, (0, 0))
 
-        screen.blit(bg_img, [0, 0])
+        # ===== 【D】stateに合わせてBGMを切り替える処理はここに書く =====
+        # if state == "play":
+        #     sound.play_bgm("sound/house_lo.wav")
+        # else:
+        #     sound.play_bgm("")
 
         # 雑魚敵の出現（通常プレイ中だけ）
         if state == "play":
