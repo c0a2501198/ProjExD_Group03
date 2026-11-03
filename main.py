@@ -380,8 +380,30 @@ class ResultScreen:
         screen.blit(self.koukaton_img, [800, 300]) #こうかとん2枚目のblit
         screen.blit(score_surface, [400, 200]) #Scoreのblit
         screen.blit(self.retry, [400, 100]) #"Press Enter to Retry"のblit
-        
 
+
+class SoundManager:
+    """
+    音を管理するクラス
+    """
+    def __init__(self):
+        """
+        音源の読み込み
+        """
+        self.boom = pg.mixer.Sound("sound/boom.wav") #爆発音
+        self.normal_bgm = pg.mixer.Sound("sound/house_lo.wav") #通常時BGM
+        self.sound_dic = {"boom":self.boom, "normal_bgm":self.normal_bgm}
+        self.current_bgm = ""
+
+    def play_bgm(self, name: str) -> None:
+        if name != self.current_bgm:
+            pg.mixer.music.load(name)
+            pg.mixer.music.play(loops = -1)
+            self.current_bgm = name
+
+    def play_se(self, name: str) -> None:
+        se = self.sound_dic[name]
+        se.play()
 
 
 def main() -> None:
@@ -435,7 +457,10 @@ def main() -> None:
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
                 if state == "title":
                     state = "play" #titleからplayに移行
-                elif state == "gameover" or "clear":
+                elif state == "play":
+                    pass
+                #elif state == "gameover" or "clear":
+                else:
                     beams.empty() #beamsを空に
                     bombs.empty() #bombsを空に
                     emys.empty() #emysを空に
