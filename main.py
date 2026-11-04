@@ -6,7 +6,7 @@
 【担当の印】自分の担当の印をCtrl+Fで検索すると，書く場所が見つかる
     【中川】ボス戦（ボス・ボスの弾・HPバー）
     【A】アイテムドロップ
-    【B】自機強化（段階強化ショット・必殺技）
+    【仙田】自機強化（段階強化ショット・必殺技）
     【C】雑魚敵バリエーション・難易度上昇
     【D】画面遷移（タイトル・結果画面・リトライ）・BGM・効果音
 """
@@ -28,7 +28,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ===== 【A】アイテムドロップの定数はここに書く =====
 
-# ===== 【B】自機強化の定数はここに書く =====
+# ===== 【仙田】自機強化の定数はここに書く =====
 LEVEL_SCORES = [0, 100, 300]
 GAUGE_MAX = 100
 GAUGE_PER_ENEMY = 10
@@ -178,7 +178,7 @@ class Beam(pg.sprite.Sprite):
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
-        # 【B】角度の引数 angle0: float = 0 はここに足す
+        # 【仙田】角度の引数 angle0: float = 0 はここに足す
         super().__init__()
         self.vx, self.vy = bird.dire
         angle = math.degrees(math.atan2(-self.vy, self.vx))
@@ -323,7 +323,7 @@ class LifeDisplay:
 # ===== 【A】アイテムのクラス（Item）はここに書く =====
 
 
-# ===== 【B】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
+# ===== 【仙田】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
 class PowerUp:
     """
     自機のビームの数を増やす・レベルの表示をするクラス
@@ -488,7 +488,7 @@ def main() -> None:
 
     # ===== 【A】アイテム用のGroup（items）と威力アップの残り時間はここで作る =====
 
-    # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
+    # ===== 【仙田】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
     power_up = PowerUp()
     special_gauge = SpecialGauge()
     special = pg.sprite.Group()
@@ -504,11 +504,11 @@ def main() -> None:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # 【A】威力アップ中は作ったビームのpowerを+1する
-                # 【B】強化段階の角度ごとにビームを作る形に変える
+                # 【仙田】強化段階の角度ごとにビームを作る形に変える
                 for angle in power_up.get_angles():
                     beams.add(Beam(bird, angle))
                 # 【D】ビームの効果音を鳴らす
-            # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
+            # ===== 【仙田】Xキーで必殺技を発動する処理はここに書く =====
             if event.type == pg.KEYDOWN and event.key == pg.K_x and special_gauge.can_use() == True:
                 for emy in emys:
                     exps.add(Explosion(emy, 100))
@@ -554,7 +554,7 @@ def main() -> None:
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 # 【A】確率でアイテムを出す
-                # 【B】必殺技のゲージを溜める
+                # 【仙田】必殺技のゲージを溜める
                 special_gauge.add(GAUGE_PER_ENEMY)
                 # 【D】爆発の効果音を鳴らす
                 emy.kill()
@@ -596,7 +596,7 @@ def main() -> None:
 
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
 
-        # ===== 【B】強化段階・ゲージ・必殺技の描画はここに書く =====
+        # ===== 【仙田】強化段階・ゲージ・必殺技の描画はここに書く =====
         power_up.update_level(score.value)
         power_up.draw(screen)
         special_gauge.draw(screen)
