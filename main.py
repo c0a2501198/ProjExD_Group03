@@ -25,6 +25,16 @@ BOSS_SCORE = 500  # ボス戦に切り替わるスコア
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ===== 【中川】ボス戦の定数はここに書く =====
+BOSS_HP=100
+BOSS_STOP_Y=150
+BOSS_SWING_WIDTH=300
+BOSS_SWING_SPEED=0.02
+BOSS_INTERVALS=[60,80,30]
+BOSS_BONUS=500
+BOSS_BAR_WIDTH=600
+BOSS_BAR_HEIGHT=20
+BOSS_BAR_Y=30
+BOSS_BAR_COLORS: list[tuple[int, int, int]] = [(0, 200, 0), (230, 200, 0), (220, 0, 0)]
 
 # ===== 【A】アイテムドロップの定数はここに書く =====
 
@@ -309,6 +319,147 @@ class LifeDisplay:
 
 
 # ===== 【中川】ボス戦のクラス（Boss，BossBullet，BossHPBar）はここに書く =====
+class Boss(pg.sprite.Sprite):
+    """
+    ボスに関するクラス
+    スコアが一定に達すると登場して画面上部まで降りてきて，左右に揺れながら攻撃する
+    HPの残りに応じて攻撃パターンが変わる
+    """
+    def __init__(self,bird: Bird) -> None:
+        """
+        ボスの画像・位置・HP・状態を設定する
+        引数 bird：狙うこうかとん
+        """
+        super().__init__()
+        self.bird=bird
+        Boss_image=pg.image.load("fig/alien1.png")
+        self.image=pg.transform.rotozoom(Boss_image,0,2.5)
+        self.rect=self.image.get_rect()
+        self.rect.center=(WIDTH//2),(-100)
+        self.hp=BOSS_HP
+        self.max_hp=BOSS_HP
+        self.mode="enter"  # "enter"（登場中）／"fight"（戦闘中）／"dying"（撃破）
+        self.count=0
+        self.blink=0
+
+    def update(self) -> None:
+        """
+        modeに合わせてボスを動かす
+        "enter"は降下，"fight"は左右に揺れる，フェーズ2は揺れが速くなる
+        """
+        if self.mode=="enter":
+            self.rect.move_ip(0,10)
+            if self.rect.centery>=BOSS_STOP_Y:
+                self.mode="fight"
+        elif self.mode=="fight":
+            if self.get_phase()==2:
+                self.count+=2
+            else:
+                self.count+=1
+            self.rect.centerx=WIDTH // 2 + BOSS_SWING_WIDTH * math.sin(self.count * BOSS_SWING_SPEED)
+
+    def take_damage(self,amount:int) -> None:
+        """
+        HPを減らす．"fight"のときだけ減り，0になったら"dying"にする
+        引数 amount：ダメージ量
+        """
+        if self.mode=="fight":
+            self.hp=max(self.hp-amount,0)
+            if self.hp==0:
+                self.mode="dying"
+
+    def get_phase(self) ->int:
+        """
+        HPの割合から現在のフェーズを求める
+        戻り値：0（HP50%より多い），1（20%より多い），2（20%以下）
+        """
+        hp_ratio=self.hp/self.max_hp
+        if hp_ratio>0.5:
+            ans=0
+        elif hp_ratio>0.2:
+            ans=1
+        else:
+            ans=2
+        return ans 
+
+    def attack(self,tmr: int) -> list[pg.sprite.Sprite]:
+        """
+        攻撃するタイミングなら弾を作って返す
+        フェーズ0は狙い撃ち，1と2は扇状の5発
+        引数 tmr：経過フレーム
+        戻り値：弾のリスト（攻撃しないときは空のリスト）
+        """
+        phase=self.get_phase()
+        if self.mode!="fight" or tmr%BOSS_INTERVALS[phase]!=0:
+            return []
+        if phase==0:
+            return [Bomb(self,self.bird)]
+        elif phase==1 or phase==2:
+            return [BossBullet(self, angle) for angle in range(60, 121, 15)]
+
+        
+class BossBullet(pg.sprite.Sprite):
+    """
+    ボスが扇状に撃つ弾に関するクラス
+    指定した角度へまっすぐ飛ぶ
+    """
+    def __init__(self,boss:Boss,angle:float) -> None:
+        """
+        弾の見た目・位置・速度を設定する
+        引数1 boss：弾を撃つボス
+        引数2 angle：飛ぶ角度（度，90が真下）
+        """
+        super().__init__()
+        rad=8
+        self.boss=boss
+        self.angle=angle
+        self.image = pg.Surface((2*rad, 2*rad))
+        pg.draw.circle(self.image, (255, 0, 255), (rad, rad), rad)  # 例: 紫
+        self.image.set_colorkey((0, 0, 0))
+        self.rect=self.image.get_rect()
+        self.rect.centerx=self.boss.rect.centerx
+        self.x = self.rect.centerx
+        self.rect.centery=self.boss.rect.centery +10
+        self.y = self.rect.centery
+        self.theta=math.radians(angle)
+        self.vx=math.cos(self.theta)*5
+        self.vy=math.sin(self.theta)*5
+
+    def update(self) -> None:
+        """
+        小数の位置x・yに速度を足して弾を動かし，画面外に出たら消す
+        """
+        self.x += self.vx
+        self.y += self.vy
+        self.rect.center = (self.x, self.y)
+        if check_bound(self.rect) != (True, True):
+            self.kill()        
+
+
+class BossHPBar:
+    """
+    画面上部にボスのHPバーを表示するクラス
+    """
+    def __init__(self,boss:Boss) -> None:
+        """
+        「BOSS」の文字とバーの位置を用意する
+        引数 boss：HPを表示するボス
+        """
+        self.boss=boss
+        self.txt=pg.font.Font(None,30)
+        self.label = self.txt.render("BOSS", True, (255, 255, 255))
+        self.bar_left=(WIDTH - BOSS_BAR_WIDTH) // 2
+
+    def draw(self,screen: pg.Surface) -> None:
+        """
+        灰色の背景，HPの割合の幅のバー（色はフェーズで緑・黄・赤），「BOSS」の文字を描く
+        引数 screen：画面Surface
+        """
+        pg.draw.rect(screen,(80,80,80),(self.bar_left, BOSS_BAR_Y, BOSS_BAR_WIDTH, BOSS_BAR_HEIGHT))
+        hp_width = int(BOSS_BAR_WIDTH * self.boss.hp / self.boss.max_hp)
+        color = BOSS_BAR_COLORS[self.boss.get_phase()]
+        pg.draw.rect(screen, color, (self.bar_left, BOSS_BAR_Y, hp_width, BOSS_BAR_HEIGHT))
+        screen.blit(self.label, (self.bar_left - self.label.get_width() - 10, BOSS_BAR_Y))
 
 
 # ===== 【A】アイテムのクラス（Item）はここに書く =====
@@ -344,7 +495,9 @@ def main() -> None:
     state = "play"
 
     # ===== 【中川】ボス用のGroup（bosses）と変数はここで作る =====
-
+    bosses = pg.sprite.Group()  
+    boss_spawned = False 
+    hp_bar: BossHPBar | None = None
     # ===== 【A】アイテム用のGroup（items）と威力アップの残り時間はここで作る =====
 
     # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
@@ -385,7 +538,20 @@ def main() -> None:
             state = "boss"
 
         # ===== 【中川】ボスを登場させる処理・ボスの攻撃はここに書く =====
-
+        if state=="boss" and not boss_spawned:
+            boss=Boss(bird)
+            bosses.add(boss)
+            hp_bar=BossHPBar(boss)
+            boss_spawned=True
+        for boss in bosses:
+            li=boss.attack(tmr)
+            for b in li:
+                bombs.add(b)
+            if boss.mode=="dying":
+                exps.add(Explosion(boss,100))
+                score.value+=BOSS_BONUS
+                boss.kill()
+                state="clear"
         for emy in emys:
             if emy.state == "stop" and tmr % emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
@@ -410,6 +576,12 @@ def main() -> None:
             score.value += 1  # 1点アップ
 
         # ===== 【中川】ビームとボスの当たり判定はここに書く =====
+                # ビームと雑魚敵の当たり判定（敵は消さずにダメージを与える）
+        for boss, hit_beams in pg.sprite.groupcollide(bosses, beams, False, True).items():
+            for beam in hit_beams:
+                boss.take_damage(beam.power)
+            
+
 
         # ===== 【A】こうかとんがアイテムを取ったときの処理はここに書く =====
 
@@ -439,7 +611,10 @@ def main() -> None:
         exps.draw(screen)
 
         # ===== 【中川】ボスとHPバーの描画はここに書く =====
-
+        bosses.update()
+        bosses.draw(screen)
+        if hp_bar is not None and len(bosses)>0:
+            hp_bar.draw(screen)
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
 
         # ===== 【B】強化段階・ゲージ・必殺技の描画はここに書く =====
