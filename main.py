@@ -326,7 +326,7 @@ class LifeDisplay:
 # ===== 【B】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
 class PowerUp:
     """
-    自機のビームの数が増えます
+    自機のビームの数を増やす・レベルの表示をするクラス
     """
     def __init__(self) -> None:
         """
@@ -335,7 +335,7 @@ class PowerUp:
         属性2: 文字表示用のフォント
         """
         self.level: int = 1
-        self.fonto: pg.font.Font = pg.font.Font(None, 80)
+        self.fonto: pg.font.Font = pg.font.Font(None, 65)
 
     def update_level(self, score_value: int) -> None:
         """
@@ -418,11 +418,18 @@ class SpecialGauge:
         引数1: 画面
         戻り値: なし
         """
-        fonto = pg.font.Font(None, 80)
-        use_remaining = fonto.render(f"{self.uses}", True, (255, 255, 255))
-        pg.draw.rect(screen, (128, 128, 128), (100, HEIGHT-150, 200, 15))
-        pg.draw.rect(screen, (255, 255, 0), (100, HEIGHT-150, (200 * self.value / GAUGE_MAX), 15))
-        screen.blit(use_remaining, [100, HEIGHT-250])
+        colour = ()
+        if self.value == GAUGE_MAX:
+            colour = (255, 165, 0)
+            skill_available = pg.font.SysFont("meiryoui", 40).render(f"使用可能:{self.uses}", True, colour)
+            screen.blit(skill_available, [50, HEIGHT-200])
+        elif self.value < GAUGE_MAX:
+            colour = (255, 255, 0)
+            fonto = pg.font.SysFont("meiryoui", 40)  # 日本語フォント出力のためにSysFont使用
+            use_remaining = fonto.render(f"必殺技残り:{self.uses}", True, (0, 0, 0))
+            screen.blit(use_remaining, [50, HEIGHT-200])
+        pg.draw.rect(screen, (128, 128, 128), (50, HEIGHT-145, 200, 15))
+        pg.draw.rect(screen, colour, (50, HEIGHT-145, (200 * self.value / GAUGE_MAX), 15))
 
 
 class Special(pg.sprite.Sprite):
