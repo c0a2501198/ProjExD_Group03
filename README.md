@@ -30,6 +30,11 @@
 * 自機強化（担当：B）：スコアに応じてビームが3方向・5方向に強化され，ゲージを溜めて必殺技を撃てる機能
 * 雑魚敵バリエーション（担当：C）：ジグザグ・追いかけ・硬い敵の3種類と，スコアに応じて出現が増える機能
 * 画面遷移・サウンド（担当：D）：タイトル・クリア・ゲームオーバー画面とリトライ，BGMと効果音に関する機能
+BGM及び効果音の出典
+ビーム：効果音ラボ ビーム https://soundeffect-lab.info/sound/battle/battle2.html
+ダメージ：効果音ラボ パンチを受け止める https://soundeffect-lab.info/sound/battle/
+タイトルBGM：甘茶の音楽工房 ピコピコディスコ https://amachamusic.chagasi.com/music_picopicodisco.html
+ボス戦BGM：甘茶の音楽工房 イカロスの墜落 https://amachamusic.chagasi.com/music_icarusnotsuiraku.html
 
 ### メモ
 * main.pyの中に `【中川】` `【A】` `【B】` `【C】` `【D】` の印がある。自分の印をCtrl+Fで検索すると，コードを書く場所が分かる
