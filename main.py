@@ -331,8 +331,8 @@ class TitleScreen:
         """
         self.title_font = pg.font.Font(None, 100) #タイトルのフォント
         self.small_font = pg.font.Font(None, 50) #案内のフォント
-        self.title_surface = self.title_font.render("Title", True, (255, 255, 255)) #タイトルのSurface作成
-        self.small_surface = self.small_font.render("Press Enter", True, (255, 255, 255)) #案内のSurface作成
+        self.title_surface = self.title_font.render("Title", True, (0, 0, 0)) #タイトルのSurface作成
+        self.small_surface = self.small_font.render("Press Enter", True, (0, 0, 0)) #案内のSurface作成
 
     def draw(self, screen: pg.Surface, tmr: int) -> None:
         """
@@ -340,9 +340,9 @@ class TitleScreen:
         引数1 screen：画面Surface
         引数2 tmr：ゲーム開始からのフレーム数
         """
-        screen.blit(self.title_surface, [400, 300]) #タイトルのblit
+        screen.blit(self.title_surface, [500, 250]) #タイトルのblit
         if (tmr//25)%2 == 0:
-            screen.blit(self.small_surface, [400, 200]) #案内のblit
+            screen.blit(self.small_surface, [500, 350]) #案内のblit
 
 
 class ResultScreen:
@@ -378,8 +378,8 @@ class ResultScreen:
         screen.blit(self.txt, [400, 300]) #"Game Over" or "Clera"のblit
         screen.blit(self.koukaton_img, [300, 300]) #こうかとん1枚目のblit
         screen.blit(self.koukaton_img, [800, 300]) #こうかとん2枚目のblit
-        screen.blit(score_surface, [400, 200]) #Scoreのblit
-        screen.blit(self.retry, [400, 100]) #"Press Enter to Retry"のblit
+        screen.blit(score_surface, [500, 400]) #Scoreのblit
+        screen.blit(self.retry, [500, 470]) #"Press Enter to Retry"のblit
 
 
 class SoundManager:
@@ -390,9 +390,13 @@ class SoundManager:
         """
         音源の読み込み
         """
-        self.boom = pg.mixer.Sound("sound/boom.wav") #爆発音
+        self.title_bgm = pg.mixer.Sound("sound/picopicodisco.mp3") #タイトルBGM
         self.normal_bgm = pg.mixer.Sound("sound/house_lo.wav") #通常時BGM
-        self.sound_dic = {"boom":self.boom, "normal_bgm":self.normal_bgm}
+        self.boss_bgm = pg.mixer.Sound("sound/icarusnotsuiraku.mp3") #ボス戦BGM
+        self.boom = pg.mixer.Sound("sound/boom.wav") #爆発音
+        self.beem = pg.mixer.Sound("sound/beem.mp3") #ビーム発射音
+        self.damage = pg.mixer.Sound("sound/damage.mp3") #被弾音
+        self.sound_dic = {"boom":self.boom, "normal_bgm":self.normal_bgm, "beem":self.beem, "damage":self.damage}
         self.current_bgm = ""
 
     def play_bgm(self, name: str) -> None:
@@ -461,6 +465,7 @@ def main() -> None:
                 # 【B】強化段階の角度ごとにビームを作る形に変える
                 # 【D】ビームの効果音を鳴らす
                 beams.add(Beam(bird))
+                sound.play_se("beem")
 
             # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
 
@@ -483,6 +488,10 @@ def main() -> None:
         # ===== 【D】stateに合わせてBGMを切り替える処理の位置を変更しました ===== 
         if state == "play":
             sound.play_bgm("sound/house_lo.wav")
+        elif state == "title":
+            sound.play_bgm("sound/picopicodisco.mp3")
+        elif state == "boss":
+            sound.play_bgm("sound/icarusnotsuiraku.mp3")
         else:
             sound.play_bgm("")
 
@@ -559,7 +568,7 @@ def main() -> None:
             bird.change_img(8, screen)  # こうかとん悲しみエフェクト
             bird.life -= 1
             # 【D】被弾の効果音を鳴らす
-
+            sound.play_se("damage")
         if bird.life <= 0:
             # 【D】ここをstate = "gameover"にする（今はゲームを終了する）
             state = "gameover" #こうかとんの体力が0ならgameover
