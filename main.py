@@ -29,12 +29,12 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # ===== 【A】アイテムドロップの定数はここに書く =====
 
 # ===== 【仙田】自機強化の定数はここに書く =====
-LEVEL_SCORES = [0, 100, 300]
-GAUGE_MAX = 100
-GAUGE_PER_ENEMY = 10
-SPECIAL_MAX_USE = 3
-SPECIAL_TIME = 30
-SPECIAL_DAMAGE = 10
+LEVEL_SCORES = [0, 100, 300]  # Lv1, Lv2, Lv3 になるスコア
+GAUGE_MAX = 100  # ゲージの最大値
+GAUGE_PER_ENEMY = 10  # 雑魚敵1体を倒したときに溜まるゲージ量
+SPECIAL_MAX_USE = 3  # 必殺技を使える最大回数
+SPECIAL_TIME = 30  # 必殺技の白い画面エフェクトを表示するフレーム数
+SPECIAL_DAMAGE = 10  #ボス戦で必殺技使用時に使われる
 
 # ===== 【C】雑魚敵・難易度の定数はここに書く =====
 
@@ -182,19 +182,19 @@ class Beam(pg.sprite.Sprite):
         super().__init__()
         self.vx, self.vy = bird.dire
         angle = math.degrees(math.atan2(-self.vy, self.vx))
-        self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle + angle0, 1.0)
+        self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle + angle0, 1.0)  # angle0 だけ角度をずらす
         self.rect = self.image.get_rect()
         self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
         self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
-        self.radian = math.radians(angle + angle0)
-        self.x = math.cos(self.radian)
-        self.y = -math.sin(self.radian)
+        self.radian = math.radians(angle + angle0)  # ずらした角度をラジアンに変換
+        self.x = math.cos(self.radian)  # 進行方向のx成分
+        self.y = -math.sin(self.radian)  # 進行方向のy成分（画面は下が+なので符号を反転）
         self.speed = 10
         self.power = 1  # 威力（敵やボスに与えるダメージ）
 
     def update(self) -> None:
         """
-        ビームを速度ベクトルself.vx, self.vyに基づき移動させる
+        ビームを速度ベクトルself.x, self.yに基づき移動させる
         """
         self.rect.move_ip(self.speed*self.x, self.speed*self.y)
         if check_bound(self.rect) != (True, True):
@@ -355,11 +355,11 @@ class PowerUp:
         戻り値: int型が入るリスト(段階によって要素数異なる)
         """
         if self.level == 1:
-            return [0]
+            return [0]  # Lv1：正面の1方向
         elif self.level == 2:
-            return [-15, 0, 15]
+            return [-15, 0, 15]  # Lv2：3方向
         elif self.level == 3:
-            return [-30, -15, 0, 15, 30]
+            return [-30, -15, 0, 15, 30]  # Lv3：5方向
 
     def draw(self, screen: pg.Surface) -> None:
         """
@@ -420,11 +420,11 @@ class SpecialGauge:
         """
         colour = ()
         if self.value == GAUGE_MAX:
-            colour = (255, 165, 0)
+            colour = (255, 165, 0)  # ゲージ満タン：オレンジ
             skill_available = pg.font.SysFont("meiryoui", 40).render(f"使用可能:{self.uses}", True, colour)
             screen.blit(skill_available, [50, HEIGHT-200])
         elif self.value < GAUGE_MAX:
-            colour = (255, 255, 0)
+            colour = (255, 255, 0)  # ゲージ途中：黄色
             fonto = pg.font.SysFont("meiryoui", 40)  # 日本語フォント出力のためにSysFont使用
             use_remaining = fonto.render(f"必殺技残り:{self.uses}", True, (0, 0, 0))
             screen.blit(use_remaining, [50, HEIGHT-200])
@@ -447,7 +447,7 @@ class Special(pg.sprite.Sprite):
         self.image = pg.Surface((WIDTH, HEIGHT))
         self.rect = self.image.get_rect()
         self.image.fill((255, 255, 255))
-        self.image.set_alpha(128)
+        self.image.set_alpha(128)  # 半透明にする
 
     def update(self) -> None:
         """
@@ -505,15 +505,16 @@ def main() -> None:
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # 【A】威力アップ中は作ったビームのpowerを+1する
                 # 【仙田】強化段階の角度ごとにビームを作る形に変える
-                for angle in power_up.get_angles():
+                for angle in power_up.get_angles():  # 強化段階に応じた角度ごとにビームを作る
                     beams.add(Beam(bird, angle))
                 # 【D】ビームの効果音を鳴らす
             # ===== 【仙田】Xキーで必殺技を発動する処理はここに書く =====
-            if event.type == pg.KEYDOWN and event.key == pg.K_x and special_gauge.can_use() == True:
-                for emy in emys:
+            # ゲージが満タンで残り回数があるとき、Xキーで必殺技を発動する
+            if event.type == pg.KEYDOWN and event.key == pg.K_x and special_gauge.can_use():
+                for emy in emys:  # 画面上の雑魚敵をすべて爆発させて消す
                     exps.add(Explosion(emy, 100))
                     emy.kill()
-                for bomb in bombs:
+                for bomb in bombs:  # 敵の弾もすべて消す
                     exps.add(Explosion(bomb, 50))
                     bomb.kill()
                 special.add(Special())
@@ -597,11 +598,11 @@ def main() -> None:
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
 
         # ===== 【仙田】強化段階・ゲージ・必殺技の描画はここに書く =====
-        power_up.update_level(score.value)
-        power_up.draw(screen)
-        special_gauge.draw(screen)
-        special.update()
-        special.draw(screen)
+        power_up.update_level(score.value)  # スコアに応じてレベルを更新
+        power_up.draw(screen)  # レベル表示
+        special_gauge.draw(screen)  # ゲージと残り回数の表示
+        special.update()  # 必殺技エフェクトの残り時間を減らす
+        special.draw(screen)  # 必殺技エフェクトを描画
         score.update(screen)
         life_display.update(screen, bird.life)
         pg.display.update()
