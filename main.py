@@ -339,7 +339,7 @@ class Item(pg.sprite.Sprite):
         
         color = __class__.colors[self.kind]  # クラス変数から該当する種類の色を取得
         
-        # ハート型に描画するための座標（媒介変数表示）を計算してリスト化
+        # ハート型に描画するための座標を計算してリスト化
         points = [(16*math.sin(t/100)**3 + 20,
                 -(13*math.cos(t/100) - 5*math.cos(2*t/100) - 2*math.cos(3*t/100) - math.cos(4*t/100)) + 20)
                 for t in range(0, 628)]  
@@ -351,7 +351,7 @@ class Item(pg.sprite.Sprite):
     def update(self) -> None:
         """
         アイテムを落下速度（ITEM_SPEED）に合わせて下方向に移動させる
-        画面から完全に出たらアイテムを削除する
+        画面から出たらアイテムを削除する
         """
         self.rect.move_ip(0, ITEM_SPEED)  # アイテムが落ちる処理
         if check_bound(self.rect) != (True, True):
@@ -468,8 +468,7 @@ def main() -> None:
         # ===== 【中川】ビームとボスの当たり判定はここに書く =====
 
         # ===== 【A】こうかとんがアイテムを取ったときの処理はここに書く =====
-        # spritecollideの第3引数をTrueにすることで、触れたアイテムは自動的にGroupから削除される
-        for item in pg.sprite.spritecollide(bird, items, True): 
+        for item in pg.sprite.spritecollide(bird, items, True):  # 触れたアイテムを自動的にGroupから削除する
             if item.kind == "heal":  # 回復アイテムを拾った時の処理
                 bird.life = min(bird.life + 1, LIFE_MAX)  # 残機を1増やす（上限LIFE_MAXを超えないようにする）
             elif item.kind == "bonus":  # スコアアイテムを拾った時の処理
