@@ -461,7 +461,7 @@ def main() -> None:
                 # 【D】爆発の効果音を鳴らす
                 emy.kill()
 
-        for bomb in pg.sprite.groupcollide(bombs, beams, True, False).keys():  # ビームと衝突した爆弾リスト
+        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
