@@ -329,9 +329,9 @@ class TitleScreen:
         """
         タイトル画面用のフォントを用意する
         """
-        self.title_font = pg.font.Font(None, 100) #タイトルのフォント
+        self.title_font = pg.font.SysFont("hg明朝b", 100) #タイトルのフォント
         self.small_font = pg.font.Font(None, 50) #案内のフォント
-        self.title_surface = self.title_font.render("Title", True, (0, 0, 0)) #タイトルのSurface作成
+        self.title_surface = self.title_font.render("こうかとん最終決戦", True, (0, 0, 0)) #タイトルのSurface作成
         self.small_surface = self.small_font.render("Press Enter", True, (0, 0, 0)) #案内のSurface作成
 
     def draw(self, screen: pg.Surface, tmr: int) -> None:
@@ -340,7 +340,7 @@ class TitleScreen:
         引数1 screen：画面Surface
         引数2 tmr：ゲーム開始からのフレーム数
         """
-        screen.blit(self.title_surface, [500, 250]) #タイトルのblit
+        screen.blit(self.title_surface, [100, 200]) #タイトルのblit
         if (tmr//25)%2 == 0:
             screen.blit(self.small_surface, [500, 350]) #案内のblit
 
