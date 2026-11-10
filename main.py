@@ -21,7 +21,7 @@ import pygame as pg
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
-BOSS_SCORE = 1000  # ボス戦に切り替わるスコア
+BOSS_SCORE = 700  # ボス戦に切り替わるスコア
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ===== 【中川】ボス戦の定数はここに書く =====
@@ -274,7 +274,7 @@ class Enemy(pg.sprite.Sprite):
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
         self.timer = 0
-        self.hp = 1  # 体力（0以下になったら倒れる）
+        self.hp = 2  # 体力（0以下になったら倒れる）
 
     def take_damage(self, amount: int) -> None:
         """
@@ -807,6 +807,104 @@ def create_enemy(score_value: int, bird: Bird) -> Enemy:
 
 
 # ===== 【D】画面遷移・サウンドのクラス（TitleScreen，ResultScreen，SoundManager）はここに書く =====
+class TitleScreen:
+    """
+    タイトルの文字を表示するクラス
+    """
+    def __init__(self):
+        """
+        タイトル画面用のフォントを用意する
+        """
+        self.title_font = pg.font.SysFont("hg明朝b", 100) #タイトルのフォント
+        self.small_font = pg.font.Font(None, 50) #案内のフォント
+        self.title_surface = self.title_font.render("こうかとん最終決戦", True, (0, 0, 0)) #タイトルのSurface作成
+        self.small_surface = self.small_font.render("Press Enter", True, (0, 0, 0)) #案内のSurface作成
+
+    def draw(self, screen: pg.Surface, tmr: int) -> None:
+        """
+        タイトル文字を表示する
+        引数1 screen：画面Surface
+        引数2 tmr：ゲーム開始からのフレーム数
+        """
+        screen.blit(self.title_surface, [100, 200]) #タイトルのblit
+        if (tmr//25)%2 == 0:
+            screen.blit(self.small_surface, [500, 350]) #案内のblit
+
+
+class ResultScreen:
+    """
+    リザルト画面を表示するクラス
+    """
+    def __init__(self, kind: str):
+        """
+        表示するフォント、文字、画像を用意する
+        """
+        self.black_img = pg.Surface((WIDTH, HEIGHT))  # Surfaceの生成
+        pg.draw.rect(self.black_img, (0, 0, 0), (0, 0, WIDTH, HEIGHT), width=0)  # 黒画像の描画
+        self.black_img.set_alpha(200)  # 透明度の調整
+        self.font = pg.font.Font(None, 80)  # フォントの設定
+        self.value = 0
+        self.retry = self.font.render("Press Enter to retry", True, (255, 255, 255)) #Retry文のSurface作成
+        if kind == "gameover":
+            self.txt = self.font.render("Game Over", True, (255, 255, 255))  # 文字の決定
+            self.koukaton_img = pg.image.load("fig/8.png")  # 画像の読み込み
+        elif kind == "clear":
+            self.txt = self.font.render("Clear!", True, (255, 255, 255))  # 文字の決定
+            self.koukaton_img = pg.image.load("fig/6.png") #画像の読み込み
+        
+
+    def draw(self, screen: pg.Surface, score_value: int) -> None:
+        """
+        ゲームオーバー、クリア画面、リザルトを表示する
+        引数1 screen：画面Surface
+        引数2 score_value：スコアの値
+        """
+        score_surface = self.font.render(f"Score : {score_value}", True, (255, 255, 255)) #スコアSurface作成
+        screen.blit(self.black_img, [0, 0]) #透明な黒のblit
+        screen.blit(self.txt, [400, 300]) #"Game Over" or "Clera"のblit
+        screen.blit(self.koukaton_img, [300, 300]) #こうかとん1枚目のblit
+        screen.blit(self.koukaton_img, [800, 300]) #こうかとん2枚目のblit
+        screen.blit(score_surface, [500, 400]) #Scoreのblit
+        screen.blit(self.retry, [500, 470]) #"Press Enter to Retry"のblit
+
+
+class SoundManager:
+    """
+    音を管理するクラス
+    """
+    def __init__(self):
+        """
+        音源の読み込み
+        """
+        self.title_bgm = pg.mixer.Sound("sound/picopicodisco.mp3") #タイトルBGM
+        self.normal_bgm = pg.mixer.Sound("sound/house_lo.wav") #通常時BGM
+        self.boss_bgm = pg.mixer.Sound("sound/icarusnotsuiraku.mp3") #ボス戦BGM
+        self.boom = pg.mixer.Sound("sound/boom.wav") #爆発音
+        self.beem = pg.mixer.Sound("sound/beem.mp3") #ビーム発射音
+        self.damage = pg.mixer.Sound("sound/damage.mp3") #被弾音
+        self.sound_dic = {"boom":self.boom, "normal_bgm":self.normal_bgm, "beem":self.beem, "damage":self.damage}
+        self.current_bgm = ""
+
+    def play_bgm(self, name: str) -> None:
+        """
+        BGMの管理をする
+        引数1 name：BGMの名前の文字列
+        """
+        if name != self.current_bgm: #current_bgmとnameの値が異なるなら
+            if name == "":
+                pg.mixer.music.stop() #空文字が渡されたらBGM停止
+            else:
+                pg.mixer.music.load(name) #nameのBGMをロード
+                pg.mixer.music.play(loops = -1) #ロードしたBGMをループ再生
+            self.current_bgm = name #current_bgmの値をnameにする
+
+    def play_se(self, name: str) -> None:
+        """
+        効果音の管理をする
+        引数1 name：効果音の名前の文字列
+        """
+        se = self.sound_dic[name]
+        se.play()
 
 
 def main() -> None:
@@ -827,7 +925,7 @@ def main() -> None:
 
     # ゲームの状態："play"（通常）／"boss"（ボス戦）
     # 【D】"title"，"gameover"，"clear"を追加する
-    state = "play"
+    state = "title" #ゲームの状態を管理
 
     # ===== 【中川】ボス用のGroup（bosses）と変数はここで作る =====
     bosses = pg.sprite.Group()  
@@ -844,6 +942,10 @@ def main() -> None:
     special = pg.sprite.Group()
 
     # ===== 【D】TitleScreen，ResultScreen，SoundManagerはここで作る =====
+    title = TitleScreen()
+    gameover_result = ResultScreen("gameover")
+    clear_result = ResultScreen("clear")
+    sound = SoundManager()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -861,6 +963,7 @@ def main() -> None:
                     if power_timer > 0:  # 威力アップ期間中の場合
                         new_beam.power += 1  # 生成したビームの威力を1上げる
                     beams.add(new_beam)  # ビームをグループに追加して発射
+                    sound.play_se("beem")
                 # 【D】ビームの効果音を鳴らす
             # ===== 【仙田】Xキーで必殺技を発動する処理はここに書く =====
             # ゲージが満タンで残り回数があるとき、Xキーで必殺技を発動する
@@ -874,13 +977,60 @@ def main() -> None:
                 special.add(Special())
                 special_gauge.use()
 
+            # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
+
             # ===== 【D】Enterキーでスタート・リトライする処理はここに書く =====
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if state == "title":
+                    state = "play" #titleからplayに移行
+                elif state == "play":
+                    pass
+                else:
+                    beams.empty() #beamsを空に
+                    bombs.empty() #bombsを空に
+                    emys.empty() #emysを空に
+                    exps.empty() #expsを空に
+                    bosses.empty() #bossesを空に
+                    special_gauge = SpecialGauge() #special_gaugeをリセット
+                    special.empty() #specialをリセット
+                    boss_spawned = False #boss出現フラグをリセット
+                    hp_bar = None #bossのhp_barを削除
+                    score = Score() #スコアを初期値にリセット\
+                    life_display = LifeDisplay() #体力の表示をリセット
+                    bird = Bird(3, (900, 400)) #こうかとんの位置をリセット
+                    state = "play" #gameover or clearからplayに移行
+
+        # ===== 【D】stateに合わせてBGMを切り替える処理の位置を変更しました ===== 
+        if state == "play":
+            sound.play_bgm("sound/house_lo.wav")
+        elif state == "title":
+            sound.play_bgm("sound/picopicodisco.mp3")
+        elif state == "boss":
+            sound.play_bgm("sound/icarusnotsuiraku.mp3")
+        else:
+            sound.play_bgm("")
 
         # ===== 【D】タイトル画面・結果画面を描いてcontinueする処理はここに書く =====
+        if state == "title": 
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            title.draw(screen, tmr) #タイトルを表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
+        elif state == "gameover":
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            gameover_result.draw(screen, score.value) #ゲームオーバーを表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
+        elif state == "clear":
+            screen.blit(bg_img, (0, 0)) #背景の表示
+            clear_result.draw(screen, score.value) #クリア画面を表示
+            pg.display.update() #画面の更新
+            clock.tick(50)
+            continue
+        screen.blit(bg_img, (0, 0))
 
-        # ===== 【D】stateに合わせてBGMを切り替える処理はここに書く =====
-
-        screen.blit(bg_img, [0, 0])
 
         # 雑魚敵の出現（通常プレイ中だけ）
         if state == "play":
@@ -928,7 +1078,7 @@ def main() -> None:
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 
                 # 【A】確率でアイテムを出す
-                if 0.1 < ITEM_DROP_RATE:  # 20%の確率でアイテムドロップ
+                if random.random() < ITEM_DROP_RATE:  # 20%の確率でアイテムドロップ
                     item = random.choice(item_list)  # リストの中からランダムでアイテム種類を選ぶ
                     items.add(Item(item, emy.rect.center))  # 敵の中心座標にアイテムを出現させる
                 
@@ -977,13 +1127,10 @@ def main() -> None:
             bird.change_img(8, screen)  # こうかとん悲しみエフェクト
             bird.life -= 1
             # 【D】被弾の効果音を鳴らす
-
+            sound.play_se("damage")
         if bird.life <= 0:
             # 【D】ここをstate = "gameover"にする（今はゲームを終了する）
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            state = "gameover" #こうかとんの体力が0ならgameover
 
         bird.update(key_lst, screen)
         beams.update()
