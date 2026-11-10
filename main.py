@@ -911,7 +911,7 @@ def main() -> None:
     """
     ゲームの初期化とメインループ
     """
-    pg.display.set_caption("こうかとん最終決戦（仮）")
+    pg.display.set_caption("こうかとん最終決戦")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
