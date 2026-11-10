@@ -21,7 +21,7 @@ import pygame as pg
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
-BOSS_SCORE = 500  # ボス戦に切り替わるスコア
+BOSS_SCORE = 10  # ボス戦に切り替わるスコア
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ===== 【中川】ボス戦の定数はここに書く =====
@@ -619,7 +619,7 @@ def main() -> None:
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 
                 # 【A】確率でアイテムを出す
-                if random.random() < ITEM_DROP_RATE:  # 20%の確率でアイテムドロップ
+                if 0.1 < ITEM_DROP_RATE:  # 20%の確率でアイテムドロップ
                     item = random.choice(item_list)  # リストの中からランダムでアイテム種類を選ぶ
                     items.add(Item(item, emy.rect.center))  # 敵の中心座標にアイテムを出現させる
                 
