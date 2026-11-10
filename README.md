@@ -44,6 +44,11 @@
 * 雑魚敵バリエーション（担当：アルネヤディサーレム）：ジグザグ・追いかけ・硬い敵の3種類と，スコアに応じて出現が増える機能
 >>>>>>> C0A25011/enemy
 * 画面遷移・サウンド（担当：D）：タイトル・クリア・ゲームオーバー画面とリトライ，BGMと効果音に関する機能
+BGM及び効果音の出典
+ビーム：効果音ラボ ビーム https://soundeffect-lab.info/sound/battle/battle2.html
+ダメージ：効果音ラボ パンチを受け止める https://soundeffect-lab.info/sound/battle/
+タイトルBGM：甘茶の音楽工房 ピコピコディスコ https://amachamusic.chagasi.com/music_picopicodisco.html
+ボス戦BGM：甘茶の音楽工房 イカロスの墜落 https://amachamusic.chagasi.com/music_icarusnotsuiraku.html
 
 * 雑魚敵バリエーション・難易度上昇（担当：アルネヤディサーレム）
  * ZigzagEnemy：左右にジグザグ移動する敵機を追加
