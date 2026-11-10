@@ -37,7 +37,11 @@ BOSS_BAR_Y=30
 BOSS_BAR_COLORS: list[tuple[int, int, int]] = [(0, 200, 0), (230, 200, 0), (220, 0, 0)]
 
 # ===== 【A】アイテムドロップの定数はここに書く =====
-
+ITEM_DROP_RATE = 0.2  # アイテムが出る確率（20%）
+ITEM_SPEED = 3        # アイテムが落ちる速さ
+LIFE_MAX = 5          # 回復したときの残機の上限
+POWER_TIME = 500      # 威力アップが続くフレーム数（約10秒）
+BONUS_SCORE = 30      # スコアアイテムで増える点数
 # ===== 【B】自機強化の定数はここに書く =====
 
 # ===== 【C】雑魚敵・難易度の定数はここに書く =====
@@ -463,6 +467,46 @@ class BossHPBar:
 
 
 # ===== 【A】アイテムのクラス（Item）はここに書く =====
+class Item(pg.sprite.Sprite):
+    """
+    アイテムに関するクラス
+    """
+    colors = {
+        "heal": (255, 0, 0),     # 回復アイテムの色（赤）
+        "power": (255, 255, 0),  # 威力アップアイテムの色（黄）
+        "bonus": (0, 255, 0),    # スコアアイテムの色（緑）
+    }
+
+    def __init__(self, kind: str, xy: tuple[int, int]) -> None:
+        """
+        落ちてくるアイテムのSurfaceを生成する
+        引数1 kind：生成するアイテムの種類（"heal", "power", "bonus"）
+        引数2 xy：アイテムの出現位置（倒した敵の中心座標）タプル
+        """
+        super().__init__()
+        self.kind = kind  # アイテムの種類を保存
+        self.image = pg.Surface((40, 40))   # アイテム描画用の空のSurfaceを作成
+        self.image.set_colorkey((0, 0, 0))  # 黒背景を透明化
+        
+        color = __class__.colors[self.kind]  # クラス変数から該当する種類の色を取得
+        
+        # ハート型に描画するための座標を計算してリスト化
+        points = [(16*math.sin(t/100)**3 + 20,
+                -(13*math.cos(t/100) - 5*math.cos(2*t/100) - 2*math.cos(3*t/100) - math.cos(4*t/100)) + 20)
+                for t in range(0, 628)]  
+        
+        pg.draw.polygon(self.image, color, points)  # 取得した色と座標でハートを描画
+        self.rect = self.image.get_rect()  # SurfaceからRectを抽出
+        self.rect.center = xy  # アイテムの出現位置を設定
+    
+    def update(self) -> None:
+        """
+        アイテムを落下速度（ITEM_SPEED）に合わせて下方向に移動させる
+        画面から出たらアイテムを削除する
+        """
+        self.rect.move_ip(0, ITEM_SPEED)  # アイテムが落ちる処理
+        if check_bound(self.rect) != (True, True):
+            self.kill()  # 画面外行ったら自動的に消える
 
 
 # ===== 【B】自機強化のクラス（PowerUp，SpecialGauge，Special）はここに書く =====
@@ -487,8 +531,8 @@ def main() -> None:
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()  # 敵の弾（ボスの弾も入れる）
     beams = pg.sprite.Group()  # こうかとんのビーム
-    exps = pg.sprite.Group()  # 爆発エフェクト
-    emys = pg.sprite.Group()  # 雑魚敵（Enemyのサブクラスも入れる）
+    exps = pg.sprite.Group()   # 爆発エフェクト
+    emys = pg.sprite.Group()   # 雑魚敵（Enemyのサブクラスも入れる）
 
     # ゲームの状態："play"（通常）／"boss"（ボス戦）
     # 【D】"title"，"gameover"，"clear"を追加する
@@ -499,6 +543,9 @@ def main() -> None:
     boss_spawned = False 
     hp_bar: BossHPBar | None = None
     # ===== 【A】アイテム用のGroup（items）と威力アップの残り時間はここで作る =====
+    items = pg.sprite.Group()  # アイテムを管理するグループ
+    item_list = ["heal", "power", "bonus"]  # ランダム抽選用アイテム種類のリスト
+    power_timer = 0  # 強化状態の残り時間（フレーム数）
 
     # ===== 【B】PowerUp，SpecialGauge，Special用のGroupはここで作る =====
 
@@ -513,9 +560,13 @@ def main() -> None:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # 【A】威力アップ中は作ったビームのpowerを+1する
+                new_beam = Beam(bird)
+                if power_timer > 0:  # 威力アップ期間中の場合
+                    new_beam.power += 1  # 生成したビームの威力を1上げる
+                beams.add(new_beam)  # ビームをグループに追加して発射
+                
                 # 【B】強化段階の角度ごとにビームを作る形に変える
                 # 【D】ビームの効果音を鳴らす
-                beams.add(Beam(bird))
 
             # ===== 【B】Xキーで必殺技を発動する処理はここに書く =====
 
@@ -566,7 +617,12 @@ def main() -> None:
                 exps.add(Explosion(emy, 100))  # 爆発エフェクト
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
+                
                 # 【A】確率でアイテムを出す
+                if random.random() < ITEM_DROP_RATE:  # 20%の確率でアイテムドロップ
+                    item = random.choice(item_list)  # リストの中からランダムでアイテム種類を選ぶ
+                    items.add(Item(item, emy.rect.center))  # 敵の中心座標にアイテムを出現させる
+                
                 # 【B】必殺技のゲージを溜める
                 # 【D】爆発の効果音を鳴らす
                 emy.kill()
@@ -584,6 +640,17 @@ def main() -> None:
 
 
         # ===== 【A】こうかとんがアイテムを取ったときの処理はここに書く =====
+        for item in pg.sprite.spritecollide(bird, items, True):  # 触れたアイテムを自動的にGroupから削除する
+            if item.kind == "heal":  # 回復アイテムを拾った時の処理
+                bird.life = min(bird.life + 1, LIFE_MAX)  # 残機を1増やす（上限LIFE_MAXを超えないようにする）
+            elif item.kind == "bonus":  # スコアアイテムを拾った時の処理
+                score.value += BONUS_SCORE  # 現在のスコアにボーナス分を加算する
+            elif item.kind == "power":  # 強化アイテムを拾った時の処理
+                power_timer = POWER_TIME  # 強化の残り時間をリセットする
+        
+        # 威力アップの残り時間の管理
+        if power_timer > 0:  # マイナスにならないよう0より大きいときだけ減らす
+            power_timer -= 1  # 1フレームにつき1ずつ強化時間を減らす
 
         # ===== 【C】追いかけ敵の体当たり（こうかとんと雑魚敵の当たり判定）はここに書く =====
 
@@ -616,6 +683,8 @@ def main() -> None:
         if hp_bar is not None and len(bosses)>0:
             hp_bar.draw(screen)
         # ===== 【A】アイテムの描画（items.update，items.draw）はここに書く =====
+        items.update()      # アイテムの位置を更新する（落下処理）
+        items.draw(screen)  # アイテムを画面に描画する
 
         # ===== 【B】強化段階・ゲージ・必殺技の描画はここに書く =====
 
