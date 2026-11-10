@@ -21,7 +21,7 @@ import pygame as pg
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
-BOSS_SCORE = 10  # ボス戦に切り替わるスコア
+BOSS_SCORE = 1000  # ボス戦に切り替わるスコア
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ===== 【中川】ボス戦の定数はここに書く =====
@@ -52,6 +52,15 @@ SPECIAL_TIME = 30  # 必殺技の白い画面エフェクトを表示するフ�
 SPECIAL_DAMAGE = 10  #ボス戦で必殺技使用時に使われる
 
 # ===== 【C】雑魚敵・難易度の定数はここに書く =====
+
+ZIGZAG_WIDTH = 100
+ZIGZAG_SPEED = 0.05
+CHASE_SPEED = 5
+TANK_HP = 3
+SPAWN_INTERVALS = [200, 150, 100]
+SPAWN_SCORES = [0, 100, 300]
+FIRE_INTERVALS = [200, 150, 100]  
+BOMB_SPEEDS = [6, 8, 10]  
 
 # ===== 【D】画面遷移・サウンドの定数はここに書く =====
 
@@ -156,11 +165,12 @@ class Bomb(pg.sprite.Sprite):
     """
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
-    def __init__(self, emy: "Enemy", bird: Bird) -> None:
+    def __init__(self, emy: "Enemy", bird: Bird, speed: int = 6) -> None:
         """
         爆弾円Surfaceを生成する
         引数1 emy：爆弾を投下する敵機（rectを持っていればボスでもよい）
         引数2 bird：攻撃対象のこうかとん
+        引数3 speed：爆弾の移動速度
         """
         super().__init__()
         rad = random.randint(10, 50)  # 爆弾円の半径：10以上50以下の乱数
@@ -173,7 +183,7 @@ class Bomb(pg.sprite.Sprite):
         self.vx, self.vy = calc_orientation(emy.rect, bird.rect)
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
-        self.speed = 6
+        self.speed = speed # スコアに応じて爆弾の速度を設定する
 
     def update(self) -> None:
         """
@@ -263,6 +273,7 @@ class Enemy(pg.sprite.Sprite):
         self.bound = random.randint(50, HEIGHT//2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
+        self.timer = 0
         self.hp = 1  # 体力（0以下になったら倒れる）
 
     def take_damage(self, amount: int) -> None:
@@ -656,6 +667,144 @@ class Special(pg.sprite.Sprite):
 
 # ===== 【C】雑魚敵のサブクラス（ZigzagEnemy，ChaseEnemy，TankEnemy）と出現用の関数はここに書く =====
 
+class ZigzagEnemy(Enemy):
+    """左右に揺れながら降下する敵機"""
+
+    def __init__(self) -> None:
+        """敵機の画像と出現位置を設定する"""
+        super().__init__()
+        center = self.rect.center
+        self.image = pg.transform.rotozoom(
+            pg.image.load("fig/alien2.png"), 0, 0.8
+        )
+        self.rect = self.image.get_rect(center=center)
+        self.base_x = random.randint(
+            ZIGZAG_WIDTH + self.rect.width // 2,
+            WIDTH - ZIGZAG_WIDTH - self.rect.width // 2
+        )
+        self.rect.centerx = self.base_x
+        self.count = 0
+
+    def update(self) -> None:
+        """sin関数で左右に揺れながら降下する"""
+        self.count += 1
+        self.rect.centerx = self.base_x + int(ZIGZAG_WIDTH * math.sin(self.count * ZIGZAG_SPEED))
+        super().update()
+
+
+class ChaseEnemy(Enemy):
+    """こうかとんを追いかける敵機"""
+
+    def __init__(self, bird: Bird) -> None:
+        """追跡するこうかとんを設定する"""
+        super().__init__()
+        center = self.rect.center
+        self.image = pg.transform.rotozoom(
+            pg.image.load("fig/alien3.png"), 0, 0.8
+        )
+        self.rect = self.image.get_rect(center=center)
+        self.bird = bird
+        self.state = "chase"
+
+    def update(self) -> None:
+        """こうかとんの方向に移動する"""
+        vx, vy = calc_orientation(self.rect, self.bird.rect)
+        self.rect.move_ip(CHASE_SPEED * vx, CHASE_SPEED * vy)
+
+
+class TankEnemy(Enemy):
+    """体力が高い大型の敵機"""
+
+    def __init__(self) -> None:
+        """体力と画像の大きさを設定する"""
+        super().__init__()
+        self.hp = TANK_HP
+        center = self.rect.center
+        self.image = pg.transform.rotozoom(self.image, 0, 1.5)
+        self.rect = self.image.get_rect(center=center)
+
+    def draw_hp(self, screen: pg.Surface) -> None:
+        """
+        硬い敵の上に体力バーを表示する
+        引数 screen：画面Surface
+        """
+        bar_width = 50  # 体力バーの幅
+        bar_height = 6  # 体力バーの高さ
+
+        x = self.rect.centerx - bar_width // 2  # 横方向の位置
+        y = self.rect.top - 12  # 敵機の上に表示する
+
+        # 体力バーの背景を描画する
+        pg.draw.rect(screen, (100, 100, 100),(x, y, bar_width, bar_height))
+
+        # 残り体力に応じてバーの長さを変更する
+        hp_width = int(bar_width * max(0, self.hp) / TANK_HP)
+
+        # 残り体力を緑色で表示する
+        pg.draw.rect(screen, (0, 255, 0),(x, y, hp_width, bar_height))
+
+
+def get_spawn_interval(score_value: int) -> int:
+    """スコアに応じて敵機の出現間隔を返す"""
+    if score_value >= SPAWN_SCORES[2]:
+        return SPAWN_INTERVALS[2]
+    elif score_value >= SPAWN_SCORES[1]:
+        return SPAWN_INTERVALS[1]
+    return SPAWN_INTERVALS[0]
+
+def get_fire_interval(score_value: int) -> int:
+    """
+    スコアに応じて爆弾の投下間隔を返す
+    引数 score_value：現在のスコア
+    戻り値：爆弾の投下間隔
+    """
+    if score_value >= SPAWN_SCORES[2]:
+        return FIRE_INTERVALS[2]  # 300点以上
+
+    elif score_value >= SPAWN_SCORES[1]:
+        return FIRE_INTERVALS[1]  # 100点以上
+
+    return FIRE_INTERVALS[0]  # 100点未満
+
+
+def get_bomb_speed(score_value: int) -> int:
+    """
+    スコアに応じて爆弾の移動速度を返す
+    引数 score_value：現在のスコア
+    戻り値：爆弾の移動速度
+    """
+    if score_value >= SPAWN_SCORES[2]:
+        return BOMB_SPEEDS[2]  # 速度10
+
+    elif score_value >= SPAWN_SCORES[1]:
+        return BOMB_SPEEDS[1]  # 速度8
+
+    return BOMB_SPEEDS[0]  # 速度6
+
+
+def create_enemy(score_value: int, bird: Bird) -> Enemy:
+    """スコアに応じて敵機の種類を選択する"""
+    if score_value < SPAWN_SCORES[1]:
+        return Enemy()
+
+    elif score_value < SPAWN_SCORES[2]:
+        enemy_type = random.choice([Enemy, ZigzagEnemy])
+        return enemy_type()
+
+    enemy_type = random.choice([
+        "normal", "zigzag", "chase", "tank"
+    ])
+
+    if enemy_type == "zigzag":
+        return ZigzagEnemy()
+    elif enemy_type == "chase":
+        return ChaseEnemy(bird)
+    elif enemy_type == "tank":
+        return TankEnemy()
+
+    return Enemy()
+
+
 
 # ===== 【D】画面遷移・サウンドのクラス（TitleScreen，ResultScreen，SoundManager）はここに書く =====
 
@@ -735,9 +884,10 @@ def main() -> None:
 
         # 雑魚敵の出現（通常プレイ中だけ）
         if state == "play":
-            # 【C】スコアに応じて出現間隔と種類を変える
-            if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
-                emys.add(Enemy())
+            interval = get_spawn_interval(score.value)  # スコアに応じて出現間隔を決める
+
+            if tmr % interval == 0:  # 指定されたフレーム間隔で敵機を出現させる
+                emys.add(create_enemy(score.value, bird))  # スコアに応じた敵機を生成する
 
         # スコアがBOSS_SCOREを超えたらボス戦へ
         if state == "play" and score.value >= BOSS_SCORE:
@@ -759,9 +909,13 @@ def main() -> None:
                 boss.kill()
                 state="clear"
         for emy in emys:
-            if emy.state == "stop" and tmr % emy.interval == 0:
-                # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
-                bombs.add(Bomb(emy, bird))
+            if emy.state == "stop": # 敵機が停止状態に入ったら，intervalに応じて爆弾投下  
+                emy.timer += 1
+
+                if emy.timer >= emy.interval:  # 発射時間になったら
+                    speed = get_bomb_speed(score.value)  # スコアに応じて爆弾の速度を変更する
+                    bombs.add(Bomb(emy, bird, speed))  # 爆弾を発射する
+                    emy.timer = 0  # 発射時間をリセットする
 
         # ビームと雑魚敵の当たり判定（敵は消さずにダメージを与える）
         for emy, hit_beams in pg.sprite.groupcollide(emys, beams, False, True).items():
@@ -811,6 +965,13 @@ def main() -> None:
 
         # ===== 【C】追いかけ敵の体当たり（こうかとんと雑魚敵の当たり判定）はここに書く =====
 
+        for emy in pg.sprite.spritecollide(bird, emys, False):  # こうかとんと衝突した敵機を調べる
+            if isinstance(emy, ChaseEnemy):  # 追いかけ敵の場合だけ処理する
+                exps.add(Explosion(emy, 50))  # 衝突した位置に爆発エフェクトを表示する
+                bird.change_img(8, screen)  # こうかとんの画像を悲しみ画像に変更する
+                bird.life -= 1  # 残機を1減らす
+                emy.kill()  # 衝突した追いかけ敵を消す
+
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))
             bird.change_img(8, screen)  # こうかとん悲しみエフェクト
@@ -829,6 +990,9 @@ def main() -> None:
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
+        for emy in emys:
+            if isinstance(emy, TankEnemy):  # 硬い敵だけ判定する
+                emy.draw_hp(screen)  # 敵機の上に体力バーを表示する
         bombs.update()
         bombs.draw(screen)
         exps.update()
